@@ -16,32 +16,30 @@ public class Criticals extends Module {
 
     @Subscribe
     private void onPacketSend(PacketEvent.Send event) {
-        // Kiểm tra nếu là gói tin tấn công
         if (event.getPacket() instanceof ServerboundInteractPacket packet) {
-            // Sử dụng Accessor hoặc Reflection nếu Action không public (tùy thuộc vào version Minecraft)
+            // Sửa lỗi 1: Truy cập action và entityId theo cấu trúc Fabric chuẩn
+            // Chúng ta ép kiểu để kiểm tra nếu đây là hành động ATTACK
             if (packet.getActionType() == ServerboundInteractPacket.ActionType.ATTACK) {
-                Entity entity = mc.level.getEntity(packet.getEntityId());
+                // Lấy entityId trực tiếp từ packet (Intermediary mappings)
+                int entityId = packet.getEntityId();
+                Entity entity = mc.level.getEntity(entityId);
 
-                // Điều kiện cơ bản để thực hiện Crit
                 if (entity == null 
                         || entity instanceof EndCrystal 
                         || !mc.player.onGround() 
                         || mc.player.isInWater() 
-                        || mc.player.isInLava()
                         || !(entity instanceof LivingEntity)) return;
 
-                // GRIM BYPASS: Sử dụng các bước nhảy packet cực nhỏ
-                // Grim thường kiểm tra "Ground Spoof", nên ta gửi tọa độ Y thay đổi nhẹ
                 double x = mc.player.getX();
                 double y = mc.player.getY();
                 double z = mc.player.getZ();
 
-                // Gửi 3 packet nhỏ để đánh lừa server về việc người chơi đang ở trên không
-                mc.player.connection.send(new ServerboundMovePlayerPacket.Pos(x, y + 0.000001, z, false));
-                mc.player.connection.send(new ServerboundMovePlayerPacket.Pos(x, y + 0.0000001, z, false));
-                mc.player.connection.send(new ServerboundMovePlayerPacket.Pos(x, y, z, false));
+                // Sửa lỗi 2: Thêm tham số thứ 5 cho constructor (thường là boolean onGround)
+                // Cấu trúc: Pos(x, y, z, horizontalCollision, onGround)
+                mc.player.connection.send(new ServerboundMovePlayerPacket.Pos(x, y + 0.000001, z, false, false));
+                mc.player.connection.send(new ServerboundMovePlayerPacket.Pos(x, y + 0.0000001, z, false, false));
+                mc.player.connection.send(new ServerboundMovePlayerPacket.Pos(x, y, z, false, false));
 
-                // Hiển thị hiệu ứng crit cục bộ (Client-side)
                 mc.player.crit(entity);
             }
         }
